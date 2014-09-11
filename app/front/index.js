@@ -99,10 +99,12 @@ function bindWebSockets(server) {
   // Question start: a new question starts! (including quiz start)
   justForward('question-start');
 
+  var socketList = new Array();
   // Answers coming in (input)
   sio.sockets.on('connection', function(socket) {
     socket.on('answer', function(answer) {
-      socket.set('userId', answer.userId);
+      socketList.push(socket);
+      socket.userId = answer.userId;
       engine.handleAnswer(answer);
     });
   });
@@ -117,14 +119,16 @@ function bindWebSockets(server) {
   // Quiz ends!
   engine.on('quiz-end', function(scoreboard) {
     // For every socket, check whether it's a player, and if so get and send their scoring.
-    sio.sockets.clients().forEach(function(socket) {
-      socket.get('userId', function(err, userId) {
+    socketList.forEach(function(socket) {
+      function finishQuiz(userId) {
         var scoring = userId && _.findWhere(scoreboard, { id: userId });
         if (scoring) {
           scoring.rank = scoreboard.indexOf(scoring) + 1;
         }
         socket.emit('quiz-end', scoring);
-      });
+      }
+      var userId = socket.userId;
+      finishQuiz(userId);
     });
   });
 }
